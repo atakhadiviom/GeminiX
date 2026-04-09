@@ -154,3 +154,16 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_list_files() {
+        let files = list_files();
+        assert!(files.len() > 0);
+        // During tests, current dir might be src-tauri, so check for Cargo.toml
+        assert!(files.iter().any(|f| f.contains("Cargo.toml")));
+    }
+}
