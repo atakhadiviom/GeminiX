@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gemini-bg text-gemini-text font-sans antialiased m-0 p-0 overflow-hidden;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Markdown prose overrides for premium feel */
+.prose-terminal {
+  @apply text-gemini-text leading-7 text-[15px];
+}
+
+.prose-terminal pre {
+  @apply !bg-[#0d0d0d] !border !border-gemini-border rounded-lg p-4 my-4 overflow-x-auto;
+}
+
+.prose-terminal code {
+  @apply font-mono text-[13px] bg-gemini-surface2 px-1.5 py-0.5 rounded text-gray-200;
+}
+
+.prose-terminal pre code {
+  @apply bg-transparent p-0 text-gray-300;
+}
+
+.prose-terminal p {
+  @apply my-3 pl-0;
+}
+
+.prose-terminal ul, .prose-terminal ol {
+  @apply my-3 pl-6 list-outside space-y-1;
+}
+
+.prose-terminal blockquote {
+  @apply border-l-4 border-gemini-muted pl-4 italic text-gemini-muted/80 my-3;
+}
+
+.prose-terminal h1, .prose-terminal h2, .prose-terminal h3, .prose-terminal h4 {
+  @apply text-gray-100 font-bold mt-6 mb-3;
+}
+
+.prose-terminal h1 { @apply text-2xl; }
+.prose-terminal h2 { @apply text-xl; }
+.prose-terminal h3 { @apply text-lg; }
+
+/* Highlight.js Dark theme tailored */
+.hljs { color: #d1d5db; background: transparent; }
+.hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-type, .hljs-addition { color: #f47067; }
+.hljs-string, .hljs-meta .hljs-meta-string, .hljs-doctag, .hljs-regexp { color: #96d0ff; }
+.hljs-title, .hljs-section, .hljs-name, .hljs-selector-id, .hljs-selector-class { color: #dcbdfb; }
+.hljs-attr, .hljs-attribute, .hljs-meta-keyword { color: #8cb6ff; }
+.hljs-built_in, .hljs-title.class_, .hljs-class .hljs-title { color: #f69d50; }
+.hljs-comment, .hljs-quote, .hljs-deletion, .hljs-meta { color: #8b949e; font-style: italic; }

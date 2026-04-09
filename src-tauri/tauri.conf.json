@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "geminix",
-        "width": 800,
-        "height": 600
+        "title": "GeminiX",
+        "width": 1440,
+        "height": 920,
+        "minWidth": 1000,
+        "minHeight": 700
       }
     ],
     "security": {
