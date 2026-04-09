@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
-import { Message } from '../types';
+import { ChatMessage } from '../types';
 
 interface ChatThreadProps {
-  messages: Message[];
+  messages: ChatMessage[];
   isStreaming: boolean;
   workspaceName?: string;
   chatTitle?: string;

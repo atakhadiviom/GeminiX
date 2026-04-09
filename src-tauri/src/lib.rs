@@ -26,6 +26,7 @@ pub struct GeminiState {
 struct RuntimeConfig {
     model: String,
     api_key: Option<String>,
+    approval_mode: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -43,13 +44,17 @@ async fn set_runtime_config(
     state: State<'_, GeminiState>,
     model: String,
     api_key: Option<String>,
+    approval_mode: Option<String>,
 ) -> Result<(), String> {
     let mut config = state.config.lock().await;
     config.model = if model.trim().is_empty() {
-        "gemini-2.5-pro".to_string()
+        "auto".to_string()
     } else {
         model
     };
+    if let Some(mode) = approval_mode {
+        config.approval_mode = mode;
+    }
     config.api_key = api_key.filter(|value| !value.trim().is_empty());
     Ok(())
 }
@@ -68,23 +73,32 @@ async fn spawn_gemini(
         let config = state.config.lock().await;
         RuntimeConfig {
             model: if config.model.trim().is_empty() {
-                "gemini-2.5-pro".to_string()
+                "auto".to_string()
             } else {
                 config.model.clone()
             },
             api_key: config.api_key.clone(),
+            approval_mode: config.approval_mode.clone(),
         }
     };
 
     let gemini_path = resolve_gemini_binary()?;
     let full_prompt = build_prompt_with_files(&prompt, &files);
 
+    let mode_arg = if config.approval_mode.eq_ignore_ascii_case("auto") {
+        "yolo"
+    } else {
+        "default"
+    };
+
     let mut command = Command::new(gemini_path);
     command
         .arg("--model")
         .arg(config.model)
-        .arg("--output_format")
-        .arg("stream_json")
+        .arg("--output-format")
+        .arg("stream-json")
+        .arg("--approval-mode")
+        .arg(mode_arg)
         .current_dir(workspace)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -279,6 +293,25 @@ async fn current_workspace(state: &GeminiState) -> Result<PathBuf, String> {
         .ok_or_else(|| "Open a workspace folder before running Gemini.".to_string())
 }
 
+#[tauri::command]
+async fn get_git_branch(state: State<'_, GeminiState>) -> Result<String, String> {
+    let workspace = current_workspace(state.inner()).await?;
+    let output = Command::new("git")
+        .arg("branch")
+        .arg("--show-current")
+        .current_dir(workspace)
+        .output()
+        .await
+        .map_err(|error| format!("Failed to get git branch: {error}"))?;
+
+    let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if branch.is_empty() {
+        Ok("master".to_string()) // Default fallback if not a git repo
+    } else {
+        Ok(branch)
+    }
+}
+
 async fn kill_active_child(state: &GeminiState) -> Result<(), String> {
     let mut child_guard = state.child.lock().await;
     if let Some(child) = child_guard.as_mut() {
@@ -397,8 +430,9 @@ pub fn run() {
             child: Mutex::new(None),
             workspace: Mutex::new(None),
             config: Mutex::new(RuntimeConfig {
-                model: "gemini-2.5-pro".to_string(),
+                model: "auto".to_string(),
                 api_key: None,
+                approval_mode: "Ask".to_string(),
             }),
         })
         .on_window_event(|window, event| {
@@ -417,7 +451,8 @@ pub fn run() {
             kill_gemini,
             read_file,
             list_directory,
-            run_shell
+            run_shell,
+            get_git_branch
         ])
         .run(tauri::generate_context!())
         .expect("error while running GeminiX");

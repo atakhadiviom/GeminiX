@@ -8,7 +8,7 @@ interface SettingsPanelProps {
   onClearSession: () => void;
 }
 
-const MODELS = ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash-exp"];
+const MODELS = ["auto", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash-exp"];
 
 export const SettingsPanel = ({
   collapsed,

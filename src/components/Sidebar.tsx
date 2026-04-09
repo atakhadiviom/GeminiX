@@ -1,9 +1,8 @@
-import React from "react";
-import { AppSettings, ChatSession } from "../types";
+import { SessionRecord } from "../types";
 
 interface SidebarProps {
   workspaceName: string;
-  sessions: ChatSession[];
+  sessions: SessionRecord[];
   currentSessionId: string;
   loadSession: (id: string) => void;
   createSession: () => void;

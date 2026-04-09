@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import Fuse from "fuse.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -23,7 +24,40 @@ export const MessageInput = ({
 }: MessageInputProps) => {
   const [value, setValue] = useState("");
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [gitBranch, setGitBranch] = useState("...");
+  const [isDictating, setIsDictating] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    invoke<string>("get_git_branch")
+      .then((branch) => setGitBranch(branch))
+      .catch(() => setGitBranch("master"));
+  }, []);
+
+  const toggleDictation = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice dictation is not supported by your browser.");
+      return;
+    }
+
+    if (isDictating) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+
+    recognition.onstart = () => setIsDictating(true);
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setValue((prev) => (prev ? prev + " " + transcript : transcript));
+    };
+    recognition.onerror = () => setIsDictating(false);
+    recognition.onend = () => setIsDictating(false);
+
+    recognition.start();
+  };
 
   const fuse = useMemo(
     () =>
@@ -143,7 +177,12 @@ export const MessageInput = ({
           </div>
           
           <div className="flex items-center gap-1.5">
-            <button className="p-1.5 text-[#a1a1aa] hover:text-[#fafafa] transition-colors rounded-md hover:bg-[#27272a]">
+            <button 
+              className={`p-1.5 transition-colors rounded-md ${isDictating ? "bg-red-500/20 text-red-500" : "text-[#a1a1aa] hover:text-[#fafafa] hover:bg-[#27272a]"}`}
+              onClick={toggleDictation}
+              type="button"
+              title="Dictate prompt"
+            >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
             </button>
             {isStreaming ? (
@@ -186,7 +225,7 @@ export const MessageInput = ({
         </button>
         <div className="ml-auto flex items-center gap-1.5 hover:text-[#fafafa] cursor-pointer transition-colors">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="6" y1="9" x2="6" y2="15"></line></svg>
-          master
+          {gitBranch}
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </div>
       </div>

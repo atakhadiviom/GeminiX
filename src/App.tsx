@@ -12,7 +12,7 @@ import type { AppSettings, ChatMessage, FileEntry } from "./types";
 const SETTINGS_KEY = "geminix:settings";
 
 const defaultSettings: AppSettings = {
-  model: "gemini-2.5-pro",
+  model: "auto",
   approvalMode: "Ask",
   apiKey: "",
   theme: "dark",
@@ -34,11 +34,27 @@ const flattenFiles = (entries: FileEntry[]): FileEntry[] =>
   entries.flatMap((entry) => [entry, ...flattenFiles(entry.children ?? [])]);
 
 const extractChunkText = (payload: string) => {
-  const raw = payload.trim();
+  let raw = payload.trim();
   if (!raw) return "";
+
+  const jsonStart = raw.indexOf("{");
+  if (jsonStart > 0) {
+    raw = raw.slice(jsonStart);
+  }
 
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
+    
+    // Ignore non-message events
+    if (parsed.type && parsed.type !== "message") {
+      return "";
+    }
+
+    // Ignore echoed user messages
+    if (parsed.role === "user") {
+      return "";
+    }
+
     const candidates: unknown[] = [
       parsed.text,
       parsed.content,
@@ -51,15 +67,16 @@ const extractChunkText = (payload: string) => {
       if (typeof candidate === "string" && candidate) return candidate;
       if (candidate && typeof candidate === "object") {
         const nested = candidate as Record<string, unknown>;
-        if (typeof nested.text === "string") return nested.text;
-        if (typeof nested.content === "string") return nested.content;
+        if (typeof nested.text === "string" && nested.text) return nested.text;
+        if (typeof nested.content === "string" && nested.content) return nested.content;
       }
     }
+    
+    return "";
   } catch {
+    // If it's genuinely not JSON, maybe return it as raw text
     return payload;
   }
-
-  return payload;
 };
 
 const buildConversationPrompt = (
@@ -125,6 +142,7 @@ function App() {
     void invoke("set_runtime_config", {
       model: settings.model,
       api_key: settings.apiKey,
+      approval_mode: settings.approvalMode,
     });
   }, [settings.apiKey, settings.model]);
 
@@ -289,6 +307,7 @@ function App() {
       await invoke("set_runtime_config", {
         model: settings.model,
         api_key: settings.apiKey,
+        approval_mode: settings.approvalMode,
       });
       await invoke("spawn_gemini", {
         prompt: buildConversationPrompt([...messages, ...shellOutputs], messageText, agentInstructions),
