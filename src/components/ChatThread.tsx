@@ -2,13 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
-import { ChatMessage } from '../types';
+import { ChatMessage, SessionRecord } from '../types';
 
 interface ChatThreadProps {
   messages: ChatMessage[];
   isStreaming: boolean;
   workspaceName?: string;
-  chatTitle?: string;
+  sessions?: SessionRecord[];
+  currentSessionId?: string;
+  loadSession?: (id: string) => void;
+  createSession?: () => void;
+  onOpenSettings?: () => void;
 }
 
 function CodeBlock({ node, inline, className, children, ...props }: any) {
@@ -52,7 +56,16 @@ function CodeBlock({ node, inline, className, children, ...props }: any) {
   );
 }
 
-export function ChatThread({ messages, isStreaming, workspaceName = "Workspace", chatTitle = "New Chat" }: ChatThreadProps) {
+export function ChatThread({
+  messages,
+  isStreaming,
+  workspaceName = "Workspace",
+  sessions = [],
+  currentSessionId,
+  loadSession,
+  createSession,
+  onOpenSettings
+}: ChatThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -60,22 +73,40 @@ export function ChatThread({ messages, isStreaming, workspaceName = "Workspace",
   }, [messages, isStreaming]);
 
   return (
-    <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col px-4 pt-6 pb-2">
-      <div className="max-w-3xl mx-auto w-full mb-8">
-        <h1 className="text-lg font-bold text-[#fafafa] flex items-center gap-2">
-          {chatTitle} 
-          <span className="text-sm font-normal text-[#a1a1aa] bg-[#27272a]/50 px-2 rounded-md py-0.5 ml-2 truncate max-w-[150px]">{workspaceName}</span>
-          <span className="text-sm font-normal text-[#a1a1aa] ml-2">...</span>
-          <div className="ml-auto flex items-center gap-3">
-             <button className="text-[#a1a1aa] hover:text-white transition-colors"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></button>
-             <button className="text-[#a1a1aa] hover:text-white transition-colors"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg></button>
-             <div className="flex items-center gap-1.5 text-xs text-[#a1a1aa] border border-[#27272a] rounded-full px-2 py-1 ml-2 cursor-pointer hover:bg-[#27272a]/50">
-               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><path d="M13 6h3a2 2 0 0 1 2 2v7"></path><line x1="6" y1="9" x2="6" y2="21"></line></svg>
-               Commit
-               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-             </div>
+    <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col pt-4 pb-2">
+      <div className="flex items-center justify-between border-b border-[#27272a] px-4 pb-3 mb-6 w-full">
+        <div className="flex items-center gap-3 w-full">
+          <div className="text-sm font-bold text-[#fafafa] bg-[#27272a]/50 px-2 rounded py-1 truncate max-w-[150px]">
+            {workspaceName}
           </div>
-        </h1>
+
+          <select
+            value={currentSessionId}
+            onChange={(e) => loadSession?.(e.target.value)}
+            className="bg-transparent text-sm text-[#fafafa] outline-none border border-[#27272a] rounded px-2 py-1 max-w-[300px] truncate"
+          >
+            {sessions.map((session: SessionRecord) => (
+              <option key={session.id} value={session.id} className="bg-[#18181b] text-[#fafafa]">
+                {session.label || "New Chat"}
+              </option>
+            ))}
+          </select>
+
+          <button
+            onClick={createSession}
+            className="flex items-center gap-1 text-xs text-[#a1a1aa] hover:text-[#fafafa] transition-colors ml-2"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            New Session
+          </button>
+
+          <div className="ml-auto flex items-center gap-3">
+             <button onClick={onOpenSettings} className="flex items-center gap-1.5 text-xs text-[#a1a1aa] border border-[#27272a] rounded px-2 py-1 cursor-pointer hover:bg-[#27272a]/50 hover:text-[#fafafa] transition-colors">
+               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+               Settings
+             </button>
+          </div>
+        </div>
       </div>
 
       <div className="max-w-3xl mx-auto w-full flex flex-col gap-6">

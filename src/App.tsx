@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { ChatThread } from "./components/ChatThread";
-import { Sidebar } from "./components/Sidebar";
+import { FileExplorer } from "./components/FileExplorer";
 import { MessageInput } from "./components/MessageInput";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { useSession } from "./hooks/useSession";
@@ -107,7 +107,6 @@ function App() {
   const {
     sessions,
     currentSessionId,
-    currentSession,
     messages,
     createSession,
     loadSession,
@@ -116,6 +115,7 @@ function App() {
   } = useSession();
   const [workspacePath, setWorkspacePath] = useState("");
   const [workspaceEntries, setWorkspaceEntries] = useState<FileEntry[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<Record<string, { path: string; relativePath: string; charCount: number }>>({});
   const [agentInstructions, setAgentInstructions] = useState<string | null>(null);
   const [settings, setSettings] = useState<AppSettings>(() => {
     try {
@@ -258,8 +258,20 @@ function App() {
       case "/shell":
         await handleShellCommand(rest.join(" "));
         return true;
+      case "/files": {
+        const files = Object.values(selectedFiles);
+        if (files.length === 0) {
+          appendSystemMessage("No files selected for context.");
+        } else {
+          appendSystemMessage(
+            "Selected context files:\n" +
+              files.map((f) => `- ${f.relativePath} (~${Math.round(f.charCount / 4)} tokens)`).join("\n"),
+          );
+        }
+        return true;
+      }
       case "/help":
-        appendSystemMessage(["/clear", "/model <name>", "/shell <cmd>", "/help"].join("\n"));
+        appendSystemMessage(["/clear", "/model <name>", "/files", "/shell <cmd>", "/help"].join("\n"));
         return true;
       default:
         return false;
@@ -296,6 +308,9 @@ function App() {
     const mentionedPaths = Array.from(messageText.matchAll(/@([^\s@]+)/g)).map((match) => match[1]);
     const mentionedFiles = flattenedFiles.filter((file) => mentionedPaths.includes(file.relativePath));
     const selectedContextPaths = new Set(mentionedFiles.map((file) => file.path));
+    for (const path of Object.keys(selectedFiles)) {
+      selectedContextPaths.add(path);
+    }
 
     const nextUserMessage = createMessage("user", messageText);
     const nextAssistantMessage = createMessage("assistant", "");
@@ -328,15 +343,41 @@ function App() {
     ? workspacePath.split(/[\\/]/).filter(Boolean).pop() ?? workspacePath
     : "No workspace";
 
+  const handleToggleFile = async (entry: FileEntry, checked: boolean) => {
+    setSelectedFiles((current) => {
+      const next = { ...current };
+      if (!checked) {
+        delete next[entry.path];
+        return next;
+      }
+      return next;
+    });
+
+    if (checked) {
+      try {
+        const content = await invoke<string>("read_file", { path: entry.path });
+        setSelectedFiles((current) => ({
+          ...current,
+          [entry.path]: {
+            path: entry.path,
+            relativePath: entry.relativePath,
+            charCount: content.length,
+          },
+        }));
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  };
+
   return (
     <div className="flex h-screen min-h-[700px] min-w-[1000px] bg-[#09090b] font-sans text-[#fafafa] overflow-hidden relative">
-      <Sidebar
-        workspaceName={workspaceName}
-        sessions={sessions}
-        currentSessionId={currentSessionId}
-        loadSession={loadSession}
-        createSession={createSession}
-        onOpenSettings={() => setSettingsCollapsed(false)}
+      <FileExplorer
+        entries={workspaceEntries}
+        selectedFiles={selectedFiles}
+        onToggleFile={handleToggleFile}
+        onRefresh={() => loadWorkspace(workspacePath)}
+        agentsBadgeLabel={agentInstructions ? "📋 AGENTS.md loaded" : null}
       />
 
       <main className="flex-1 flex flex-col relative min-w-0 bg-[#000000]">
@@ -362,7 +403,11 @@ function App() {
               messages={messages}
               isStreaming={isStreaming}
               workspaceName={workspaceName}
-              chatTitle={currentSession?.label || "New Chat"}
+              sessions={sessions}
+              currentSessionId={currentSessionId}
+              loadSession={loadSession}
+              createSession={createSession}
+              onOpenSettings={() => setSettingsCollapsed(false)}
             />
             
             <div className="shrink-0">
